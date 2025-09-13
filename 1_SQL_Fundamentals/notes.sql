@@ -1,3 +1,7 @@
+/* CH1: Introduction to SQL
+
+*/
+
 -- Create table
 CREATE TABLE students (
     student_id INTEGER PRIMARY KEY,
@@ -27,6 +31,73 @@ CREATE VIEW ages AS SELECT DISTINCT age FROM students;
 
 SELECT * FROM ages;
 
+DROP VIEW ages;
+DROP table students;
+
 -- Limit result
 SELECT age FROM students LIMIT 5;
+
+
+/* Intermediate SQL 
+*/
+
+-- Count()
+SELECT COUNT(birthdate) AS count_birthdates FROM people;
+
+SELECT COUNT(name) AS count_names, COUNT(birthdate) AS count_birthdates FROM people;
+
+SELECT COUNT(*) AS total_records FROM people;
+
+-- Distinct
+SELECT language FROM films;
+
+SELECT DISTINCT language FROM films;
+
+-- Count() with Distinct
+SELECT COUNT(DISTINCT language) as count_distinct_languages from films;
+
+-- Filtering Records
+
+-- Where
+SELECT title 
+FROM films
+WHERE release_year < 2000;
+
+-- Filtering text
+SELECT *
+FROM films
+WHERE title LIKE 'The%';
+
+SELECT *
+FROM roles
+WHERE role LIKE 'Joke_';
+
+SELECT *
+FROM films
+WHERE title NOT LIKE 'The%';
+
+SELECT title, language
+FROM films
+WHERE language IN ('Spanish', 'Korean');
+
+-- Null Values
+SELECT name 
+FROM people
+WHERE deathdate is NULL;
+
+SELECT name 
+FROM people
+WHERE deathdate is NOT NULL;
+
+SELECT COUNT(*) as no_deathdate
+FROM people
+WHERE deathdate is NULL;
+
+
+/* AGGREGATE FUNCTIONS */
+
+SELECT AVG(budget) FROM films;
+SELECT SUM(budget) FROM films;
+SELECT MIN(budget) FROM films;
+SELECT MAX(budget) FROM films;
 
