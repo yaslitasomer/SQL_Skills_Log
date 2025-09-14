@@ -101,3 +101,56 @@ SELECT SUM(budget) FROM films;
 SELECT MIN(budget) FROM films;
 SELECT MAX(budget) FROM films;
 
+-- Round()
+SELECT AVG(budget) as avg_budget
+FROM films
+WHERE release_year < 2000;
+
+SELECT ROUND(AVG(budget), 2) as avg_budget
+FROM films
+WHERE release_year < 2000;
+
+SELECT ROUND(AVG(budget)) as avg_budget
+FROM films
+WHERE release_year < 2000;
+
+
+-- Aliasing and arithmetic
+SELECT (gross - budget) AS profit FROM films;
+
+
+/* ORDERING AND GROUPING */
+
+-- Sorting results
+SELECT title, budget
+FROM films
+ORDER BY budget;
+
+SELECT title, budget
+FROM films
+ORDER BY budget DESC;
+
+SELECT title, release_year, budget
+FROM films
+ORDER BY release_year, budget;
+
+-- Grouping data
+SELECT certification, COUNT(title) AS title_count
+FROM films
+GROUP BY certification;
+
+SELECT certification, language, COUNT(title) AS title_count
+FROM films
+GROUP BY certification, language;
+
+SELECT certification, COUNT(title) AS title_count
+FROM films
+GROUP BY certification
+ORDER BY title_count DESC;
+
+-- Filtering grouped data
+SELECT release_year, COUNT(title) AS title_count
+FROM films
+GROUP BY release_year
+HAVING COUNT(title) > 2; 
+
