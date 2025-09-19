@@ -84,19 +84,182 @@ ALTER TABLE fact_booksales ADD CONSTRAINT sales_store
 -- Extending the Book Dimension
 
 -- Create dim_author with an author column
-CREATE TABLE dim_author (
+CREATE TABLE dim_author_sf (
     author varchar(256)  NOT NULL
 );
 
 -- Insert distinct authors 
-INSERT INTO dim_author
+INSERT INTO dim_author_sf
 SELECT distinct author FROM dim_book_star;
 
 -- Add a primary key 
-ALTER TABLE dim_author ADD COLUMN author_id SERIAL PRIMARY KEY;
+ALTER TABLE dim_author_sf ADD COLUMN author_id SERIAL PRIMARY KEY;
 
 -- Output the new table
-SELECT * FROM dim_author;
+SELECT * FROM dim_author_sf;
+
+-- Check
+SELECT COUNT(*) FROM dim_author_sf;
+SELECT COUNT(DISTINCT author) FROM dim_book_star;
+
+SELECT
+    author,
+    COUNT(*) AS record_count
+FROM
+    dim_author_sf
+GROUP BY
+    author
+HAVING
+    COUNT(*) > 1;
 
 
+-- Create dim_publisher with a publisher column
+CREATE TABLE dim_publisher_sf (
+    publisher varchar(256)  NOT NULL
+);
+
+-- Insert distinct publishers 
+INSERT INTO dim_publisher_sf
+SELECT distinct publisher FROM dim_book_star;
+
+-- Add a primary key 
+ALTER TABLE dim_publisher_sf ADD COLUMN publisher_id SERIAL PRIMARY KEY;
+
+-- Output the new table
+SELECT * FROM dim_publisher_sf;
+
+-- Check
+SELECT COUNT(*) FROM dim_publisher_sf;
+SELECT COUNT(DISTINCT publisher) FROM dim_book_star;
+
+SELECT
+    publisher,
+    COUNT(*) AS record_count
+FROM
+    dim_publisher_sf
+GROUP BY
+    publisher
+HAVING
+    COUNT(*) > 1;
+
+
+-- Create dim_genre with a publisher column
+CREATE TABLE dim_genre_sf (
+    genre varchar(128)  NOT NULL
+);
+
+-- Insert distinct publishers 
+INSERT INTO dim_genre_sf
+SELECT distinct genre FROM dim_book_star;
+
+-- Add a primary key 
+ALTER TABLE dim_genre_sf ADD COLUMN genre_id SERIAL PRIMARY KEY;
+
+-- Output the new table
+SELECT * FROM dim_genre_sf;
+
+-- Check
+SELECT COUNT(*) FROM dim_genre_sf;
+SELECT COUNT(DISTINCT genre) FROM dim_book_star;
+
+SELECT
+    genre,
+    COUNT(*) AS record_count
+FROM
+    dim_genre_sf
+GROUP BY
+    genre
+HAVING
+    COUNT(*) > 1;
+
+
+-- Step 1: Create the new dim_book_sf table
+CREATE TABLE dim_book_sf (
+    book_id INT PRIMARY KEY,
+    title VARCHAR(256),
+    author_id INT,
+    publisher_id INT,
+    genre_id INT
+);
+
+-- Step 2: Populate the new table by joining the dimension tables
+INSERT INTO dim_book_sf (book_id, title, author_id, publisher_id, genre_id)
+SELECT
+    b.book_id,
+    b.title,
+    a.author_id,
+    p.publisher_id,
+    g.genre_id
+FROM
+    dim_book_star AS b
+JOIN
+    dim_author_sf AS a ON b.author = a.author
+JOIN
+    dim_publisher_sf AS p ON b.publisher = p.publisher
+JOIN
+    dim_genre_sf AS g ON b.genre = g.genre;
+
+-- Step 3: Add foreign key constraints to the new table
+ALTER TABLE dim_book_sf
+ADD CONSTRAINT fk_author FOREIGN KEY (author_id) REFERENCES dim_author_sf (author_id);
+
+ALTER TABLE dim_book_sf
+ADD CONSTRAINT fk_publisher FOREIGN KEY (publisher_id) REFERENCES dim_publisher_sf (publisher_id);
+
+ALTER TABLE dim_book_sf
+ADD CONSTRAINT fk_genre FOREIGN KEY (genre_id) REFERENCES dim_genre_sf (genre_id);
+
+-- Check the newly created table
+SELECT * FROM dim_book_sf;
+/* REMAINING DIMENSIONS ARE IMPLEMENTED IN database_setup.sql*/
+
+
+/* NORMALIZED(SNOWFLAKE) AND DENORMALIZED DATABASES(STAR) */
+
+
+-- Goal: get quantity of all J.R.R. Tolkien books sold in Washington in Q3 of 2017
+
+-- DENORMALIZED
+SELECT SUM(quantity) FROM fact_booksales
+-- Join to get city 
+INNER JOIN dim_store_star on fact_booksales.store_id = dim_store_star.store_id
+-- Join to get author 
+INNER JOIN dim_book_star on fact_booksales.book_id = dim_book_star.book_id
+-- Join to get year and quarter
+INNER JOIN dim_time_star on fact_booksales.time_id = dim_time_star.time_id
+WHERE
+    dim_store_star.city ='Washington' AND dim_book_star.author ='J.R.R. Tolkien' AND 
+    dim_time_star.year = 2017 AND dim_time_star.quarter = 3;
+
+-- NORMALIZED
+SELECT SUM(fact_booksales.quantity) FROM  fact_booksales
+-- Join to get city
+INNER JOIN dim_store_sf ON fact_booksales.store_id = dim_store_sf.store_id
+INNER JOIN dim_city_sf ON dim_store_sf.city_id = dim_city_sf.city_id
+-- Join to get author
+INNER JOIN dim_book_sf ON fact_booksales.book_id = dim_book_sf.book_id
+INNER JOIN dim_author_sf ON dim_book_sf.author_id = dim_author_sf.author_id
+-- Join to get year and quarter
+INNER JOIN dim_time_sf ON fact_booksales.time_id = dim_time_sf.time_id
+INNER JOIN dim_month_sf ON dim_time_sf.month_id = dim_month_sf.month_id
+INNER JOIN dim_quarter_sf ON dim_month_sf.quarter_id =  dim_quarter_sf.quarter_id
+INNER JOIN dim_year_sf ON dim_quarter_sf.year_id = dim_year_sf.year_id
+WHERE  dim_city_sf.city = 'Washington' AND dim_author_sf.author = 'J.R.R. Tolkien' AND 
+       dim_year_sf.year = 2017 AND dim_quarter_sf.quarter = 3; 
+
+
+
+-- Output each state and their total sales_amount
+SELECT dim_store_star.state, SUM(sales_amount)
+FROM fact_booksales
+	-- Join to get book information
+    JOIN dim_book_star ON fact_booksales.book_id = dim_book_star.book_id
+	-- Join to get store information
+    JOIN dim_store_star ON fact_booksales.store_id = dim_store_star.store_id
+-- Get all books with in the fantasy genre
+WHERE  
+    dim_book_star.genre LIKE 'Fantasy'
+-- Group results by state
+GROUP BY
+    dim_store_star.state;
 

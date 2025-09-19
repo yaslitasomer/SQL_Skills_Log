@@ -411,3 +411,188 @@ UPDATE fact_booksales SET time_id = 3647 WHERE time_id = 3898;
 DELETE FROM dim_time_star WHERE time_id IN (
     3598, 3125, 3428, 2517, 3614, 3496, 3391, 3897, 3568, 3898
 );
+
+
+
+
+/* SNOWFLAKE DIMENSIONS */
+
+-- EXTEND TIME 
+-- Create dim_year_sf table
+CREATE TABLE dim_year_sf (
+    year_id SERIAL PRIMARY KEY,
+    year INT NOT NULL UNIQUE
+);
+
+-- Insert unique years from dim_time_star
+INSERT INTO dim_year_sf (year)
+SELECT DISTINCT year FROM dim_time_star;
+
+-- Check the new table
+SELECT * FROM dim_year_sf;
+
+-- Create dim_quarter_sf table
+CREATE TABLE dim_quarter_sf (
+    quarter_id SERIAL PRIMARY KEY,
+    quarter INT NOT NULL,
+    year_id INT NOT NULL
+);
+
+-- Insert unique quarter and year values, joining with dim_year_sf to get year_id
+INSERT INTO dim_quarter_sf (quarter, year_id)
+SELECT DISTINCT
+    t.quarter,
+    y.year_id
+FROM
+    dim_time_star AS t
+JOIN
+    dim_year_sf AS y ON t.year = y.year;
+
+-- Check the new table
+SELECT * FROM dim_quarter_sf;
+
+-- Create dim_month_sf table
+CREATE TABLE dim_month_sf (
+    month_id SERIAL PRIMARY KEY,
+    month INT NOT NULL,
+    quarter_id INT NOT NULL
+);
+
+-- Insert unique month and quarter values, joining with dim_quarter_sf to get quarter_id
+INSERT INTO dim_month_sf (month, quarter_id)
+SELECT DISTINCT
+    t.month,
+    q.quarter_id
+FROM
+    dim_time_star AS t
+JOIN
+    dim_quarter_sf AS q ON t.quarter = q.quarter;
+
+-- Check the new table
+SELECT * FROM dim_month_sf;
+
+-- Step 1: Create the new dim_time_sf table
+CREATE TABLE dim_time_sf (
+    time_id INT PRIMARY KEY,
+    day INT NOT NULL,
+    month_id INT NOT NULL
+);
+
+-- Step 2: Populate the new table by joining the dimension tables
+INSERT INTO dim_time_sf (time_id, day, month_id)
+SELECT
+    t.time_id,
+    t.day,
+    m.month_id
+FROM
+    dim_time_star AS t
+JOIN
+    dim_quarter_sf AS q ON t.quarter = q.quarter
+JOIN
+    dim_month_sf AS m ON t.month = m.month AND q.quarter_id = m.quarter_id
+JOIN
+    dim_year_sf AS y ON t.year = y.year AND q.year_id = y.year_id;
+    
+-- Step 3: Add foreign key constraint to the new table
+ALTER TABLE dim_time_sf
+ADD CONSTRAINT fk_month FOREIGN KEY (month_id) REFERENCES dim_month_sf (month_id);
+
+-- dim_month_sf tablosuna foreign key kısıtlaması ekle
+ALTER TABLE dim_month_sf
+ADD CONSTRAINT fk_quarter FOREIGN KEY (quarter_id) REFERENCES dim_quarter_sf (quarter_id);
+
+-- dim_quarter_sf tablosuna foreign key kısıtlaması ekle
+ALTER TABLE dim_quarter_sf
+ADD CONSTRAINT fk_year FOREIGN KEY (year_id) REFERENCES dim_year_sf (year_id);
+
+-- Check the newly created table
+SELECT * FROM dim_time_sf;
+
+
+
+-- EXTEND STORE
+-- Create dim_country_sf table
+CREATE TABLE dim_country_sf (
+    country_id SERIAL PRIMARY KEY,
+    country VARCHAR(128) NOT NULL UNIQUE
+);
+
+-- Insert unique countries from dim_store_star
+INSERT INTO dim_country_sf (country)
+SELECT DISTINCT country FROM dim_store_star;
+
+-- Check the new table
+SELECT * FROM dim_country_sf;
+
+-- Create dim_state_sf table
+CREATE TABLE dim_state_sf (
+    state_id SERIAL PRIMARY KEY,
+    state VARCHAR(128) NOT NULL,
+    country_id INT NOT NULL
+);
+
+-- Insert unique states and their country_id by joining with dim_country_sf
+INSERT INTO dim_state_sf (state, country_id)
+SELECT DISTINCT
+    s.state,
+    c.country_id
+FROM
+    dim_store_star AS s
+JOIN
+    dim_country_sf AS c ON s.country = c.country;
+
+-- Check the new table
+SELECT * FROM dim_state_sf;
+
+-- Create dim_city_sf table
+CREATE TABLE dim_city_sf (
+    city_id SERIAL PRIMARY KEY,
+    city VARCHAR(128) NOT NULL,
+    state_id INT NOT NULL
+);
+
+-- Insert unique cities and their state_id by joining with dim_state_sf
+INSERT INTO dim_city_sf (city, state_id)
+SELECT DISTINCT
+    s.city,
+    t.state_id
+FROM
+    dim_store_star AS s
+JOIN
+    dim_state_sf AS t ON s.state = t.state;
+
+-- Check the new table
+SELECT * FROM dim_city_sf;
+
+-- Step 1: Create the new dim_store_sf table
+CREATE TABLE dim_store_sf (
+    store_id INT PRIMARY KEY,
+    store_address VARCHAR(256) NOT NULL,
+    city_id INT NOT NULL
+);
+
+-- Step 2: Populate the new table by joining the dimension tables
+INSERT INTO dim_store_sf (store_id, store_address, city_id)
+SELECT
+    s.store_id,
+    s.store_address, -- Note: the column name is store_addres in your data
+    c.city_id
+FROM
+    dim_store_star AS s
+JOIN
+    dim_city_sf AS c ON s.city = c.city;
+    
+-- Step 3: Add foreign key constraint to the new table
+ALTER TABLE dim_store_sf
+ADD CONSTRAINT fk_city FOREIGN KEY (city_id) REFERENCES dim_city_sf (city_id);
+
+-- Add foreign key constraint to dim_state_sf table
+ALTER TABLE dim_state_sf
+ADD CONSTRAINT fk_country FOREIGN KEY (country_id) REFERENCES dim_country_sf (country_id);
+
+-- Add foreign key constraint to dim_city_sf table
+ALTER TABLE dim_city_sf
+ADD CONSTRAINT fk_state FOREIGN KEY (state_id) REFERENCES dim_state_sf (state_id);
+
+-- Check the newly created table
+SELECT * FROM dim_store_sf;
