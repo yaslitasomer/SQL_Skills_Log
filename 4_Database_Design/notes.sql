@@ -327,3 +327,23 @@ SELECT * FROM INFORMATION_SCHEMA.views; -- Includes system views
 
 SELECT * FROM INFORMATION_SCHEMA.views -- EXcludes system views
 WHERE table_schema = 'public';
+
+
+-- Managing Views
+
+-- Grant and revoke access
+GRANT UPDATE ON fact_booksales TO PUBLIC;
+
+REVOKE INSERT ON fact_booksales FROM PUBLIC;
+
+
+SELECT CURRENT_USER;
+
+-- New User
+CREATE USER testuser WITH PASSWORD 'testt';
+SET ROLE testuser;
+
+INSERT INTO fact_booksales (sales_id, book_id, store_id, time_id, sales_amount, quantity)
+VALUES (1000001, 5582, 829, 3951, 5405.4, 2340);
+
+RESET ROLE;

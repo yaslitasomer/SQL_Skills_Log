@@ -596,3 +596,4 @@ ADD CONSTRAINT fk_state FOREIGN KEY (state_id) REFERENCES dim_state_sf (state_id
 
 -- Check the newly created table
 SELECT * FROM dim_store_sf;
+
